@@ -77,12 +77,23 @@ function dvwa_start_session() {
 	 * session_start() might not generate a Set-Cookie header if a cookie already
 	 * exists.
 	 *
-	 * We always regenerate the session id, PHP will generate a new random id.
-	 * This prevents the reuse of a previous unauthenticated id that an
-	 * attacker might have knowledge of (aka session fixation attack).
+	 * For impossible security level, we regenerate the session id, PHP will
+	 * generate a new random id. This prevents the reuse of a previous
+	 * unauthenticated id that an attacker might have knowledge of (aka
+	 * session fixation attack).
+	 *
+	 * For lower levels the existing id is kept, so clients that keep sending
+	 * the cookie they started with stay logged in.
 	*/
-	session_start();
-	session_regenerate_id(true); // force a new id and drop the old session
+	if (dvwaSecurityLevelGet() == 'impossible') {
+		session_start();
+		session_regenerate_id(); // force a new id to be generated
+	}
+	else {
+		if (isset($_COOKIE[session_name()])) // if a session id already exists
+			session_id($_COOKIE[session_name()]); // we keep the same id
+		session_start(); // otherwise a new one will be generated here
+	}
 }
 
 if (array_key_exists ("Login", $_POST) && $_POST['Login'] == "Login") {
@@ -616,7 +627,8 @@ function generateSessionToken() {  # Generate a brand new (CSRF) token
 	if( isset( $_SESSION[ 'session_token' ] ) ) {
 		destroySessionToken();
 	}
-	$_SESSION[ 'session_token' ] = bin2hex( random_bytes( 32 ) );
+	// 128 random bits, kept to 32 hex characters like the original md5 token
+	$_SESSION[ 'session_token' ] = bin2hex( random_bytes( 16 ) );
 }
 
 function destroySessionToken() {  # Destroy any session with the name 'session_token'
