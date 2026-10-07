@@ -2,32 +2,75 @@
 
 if( isset( $_GET[ 'Login' ] ) ) {
 	// Sanitise username input
-	$user = $_GET[ 'username' ];
-	$user = ((isset($GLOBALS["___mysqli_ston"]) && is_object($GLOBALS["___mysqli_ston"])) ? mysqli_real_escape_string($GLOBALS["___mysqli_ston"],  $user ) : ((trigger_error("[MySQLConverterToo] Fix the mysql_escape_string() call! This code does not work.", E_USER_ERROR)) ? "" : ""));
+	$user = isset( $_GET[ 'username' ] ) ? (is_string( $_GET[ 'username' ] ) ? $_GET[ 'username' ] : '') : '';
+	$user = stripslashes( $user );
+	$user = mysqli_real_escape_string( $GLOBALS["___mysqli_ston"], $user );
 
 	// Sanitise password input
-	$pass = $_GET[ 'password' ];
-	$pass = ((isset($GLOBALS["___mysqli_ston"]) && is_object($GLOBALS["___mysqli_ston"])) ? mysqli_real_escape_string($GLOBALS["___mysqli_ston"],  $pass ) : ((trigger_error("[MySQLConverterToo] Fix the mysql_escape_string() call! This code does not work.", E_USER_ERROR)) ? "" : ""));
+	$pass = isset( $_GET[ 'password' ] ) ? (is_string( $_GET[ 'password' ] ) ? $_GET[ 'password' ] : '') : '';
+	$pass = stripslashes( $pass );
+	$pass = mysqli_real_escape_string( $GLOBALS["___mysqli_ston"], $pass );
 	$pass = md5( $pass );
 
-	// Check the database
-	$query  = "SELECT * FROM `users` WHERE user = '$user' AND password = '$pass';";
-	$result = mysqli_query($GLOBALS["___mysqli_ston"],  $query ) or die( '<pre>' . ((is_object($GLOBALS["___mysqli_ston"])) ? mysqli_error($GLOBALS["___mysqli_ston"]) : (($___mysqli_res = mysqli_connect_error()) ? $___mysqli_res : false)) . '</pre>' );
+	// Lock an account out for a while after too many failed logins
+	$total_failed_login = 3;
+	$lockout_time       = 15;
+	$account_locked     = false;
 
-	if( $result && mysqli_num_rows( $result ) == 1 ) {
+	// Check the database (Check user information)
+	$data = $db->prepare( 'SELECT failed_login, last_login FROM users WHERE user = (:user) LIMIT 1;' );
+	$data->bindParam( ':user', $user, PDO::PARAM_STR );
+	$data->execute();
+	$row = $data->fetch();
+
+	// Check to see if the user has been locked out.
+	if( ( $data->rowCount() == 1 ) && ( $row[ 'failed_login' ] >= $total_failed_login ) ) {
+		// Calculate when the user would be allowed to login again
+		$last_login = strtotime( $row[ 'last_login' ] );
+		$timeout    = $last_login + ( $lockout_time * 60 );
+
+		// Check to see if enough time has passed, if it hasn't locked the account
+		if( time() < $timeout ) {
+			$account_locked = true;
+		}
+	}
+
+	// Check the database (if username matches the password)
+	$data = $db->prepare( 'SELECT * FROM users WHERE user = (:user) AND password = (:password) LIMIT 1;' );
+	$data->bindParam( ':user', $user, PDO::PARAM_STR );
+	$data->bindParam( ':password', $pass, PDO::PARAM_STR );
+	$data->execute();
+	$row = $data->fetch();
+
+	if( ( $data->rowCount() == 1 ) && ( $account_locked == false ) ) {
 		// Get users details
-		$row    = mysqli_fetch_assoc( $result );
-		$avatar = $row["avatar"];
+		$avatar = htmlspecialchars( $row[ 'avatar' ], ENT_QUOTES, 'UTF-8' );
+		$user_html = htmlspecialchars( $row[ 'user' ], ENT_QUOTES, 'UTF-8' );
 
 		// Login successful
-		$html .= "<p>Welcome to the password protected area {$user}</p>";
+		$html .= "<p>Welcome to the password protected area {$user_html}</p>";
 		$html .= "<img src=\"{$avatar}\" />";
+
+		// Reset bad login count
+		$data = $db->prepare( 'UPDATE users SET failed_login = "0" WHERE user = (:user) LIMIT 1;' );
+		$data->bindParam( ':user', $user, PDO::PARAM_STR );
+		$data->execute();
 	}
 	else {
-		// Login failed
-		sleep( 2 );
-		$html .= "<pre><br />Username and/or password incorrect.</pre>";
+		// Login failed, slow down automated guessing
+		sleep( 1 );
+		$html .= "<pre><br />Username and/or password incorrect.<br /><br />Alternatively, the account has been locked because of too many failed logins.<br />If this is the case, <em>please try again in {$lockout_time} minutes</em>.</pre>";
+
+		// Update bad login count
+		$data = $db->prepare( 'UPDATE users SET failed_login = (failed_login + 1) WHERE user = (:user) LIMIT 1;' );
+		$data->bindParam( ':user', $user, PDO::PARAM_STR );
+		$data->execute();
 	}
+
+	// Set the last login time
+	$data = $db->prepare( 'UPDATE users SET last_login = now() WHERE user = (:user) LIMIT 1;' );
+	$data->bindParam( ':user', $user, PDO::PARAM_STR );
+	$data->execute();
 
 	((is_null($___mysqli_res = mysqli_close($GLOBALS["___mysqli_ston"]))) ? false : $___mysqli_res);
 }

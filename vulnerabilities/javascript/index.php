@@ -38,23 +38,19 @@ if ($_SERVER['REQUEST_METHOD'] == "POST") {
 		$token = $_POST['token'];
 
 		if ($phrase == "success") {
+			// Anything worked out in the browser can be worked out (or skipped)
+			// by the user, so the server only accepts a token it signed itself,
+			// an HMAC with a secret that never leaves the server.
+			if (!isset ($_SESSION['javascript_token_key'])) {
+				$_SESSION['javascript_token_key'] = random_bytes (32);
+			}
+			$expected_token = hash_hmac ("sha256", $phrase, $_SESSION['javascript_token_key']);
+
 			switch( dvwaSecurityLevelGet() ) {
 				case 'low':
-					if ($token == md5(str_rot13("success"))) {
-						$message = "<p style='color:red'>Well done!</p>";
-					} else {
-						$message = "<p>Invalid token.</p>";
-					}
-					break;
 				case 'medium':
-					if ($token == strrev("XXsuccessXX")) {
-						$message = "<p style='color:red'>Well done!</p>";
-					} else {
-						$message = "<p>Invalid token.</p>";
-					}
-					break;
 				case 'high':
-					if ($token == hash("sha256", hash("sha256", "XX" . strrev("success")) . "ZZ")) {
+					if (is_string ($token) && hash_equals ($expected_token, $token)) {
 						$message = "<p style='color:red'>Well done!</p>";
 					} else {
 						$message = "<p>Invalid token.</p>";

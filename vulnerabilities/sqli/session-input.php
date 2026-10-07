@@ -11,7 +11,7 @@ $page[ 'title' ] = 'SQL Injection Session Input' . $page[ 'title_separator' ].$p
 if( isset( $_POST[ 'id' ] ) ) {
 	$_SESSION[ 'id' ] =  $_POST[ 'id' ];
 	//$page[ 'body' ] .= "Session ID set!<br /><br /><br />";
-	$page[ 'body' ] .= "Session ID: {$_SESSION[ 'id' ]}<br /><br /><br />";
+	$page[ 'body' ] .= "Session ID: " . htmlspecialchars( (is_string( $_SESSION[ 'id' ] ) ? $_SESSION[ 'id' ] : ''), ENT_QUOTES, 'UTF-8' ) . "<br /><br /><br />";
 	$page[ 'body' ] .= "<script>window.opener.location.reload(true);</script>";
 }
 

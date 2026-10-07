@@ -1,7 +1,9 @@
 <?php
 
-$request_url = $_SERVER['REQUEST_URI'];
-$stripped_url = str_replace ("/vulnerabilities/api/", "", $request_url);
+// Work out where DVWA is installed from the script path, never from the
+// request URI, which is user controlled and would end up inside the script.
+$api_base = preg_replace ('#/vulnerabilities/api/index\.php$#', '', $_SERVER['SCRIPT_NAME']);
+$json_flags = JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP | JSON_UNESCAPED_SLASHES;
 
 $html .= "
 	<script>
@@ -11,7 +13,7 @@ $html .= "
 			var name_input = document.getElementById ('name');
 
 			if (user_json.name == '') {
-				user_info.innerHTML = 'User details: unknown user';
+				user_info.textContent = 'User details: unknown user';
 				name_input.value = 'unknown';
 			} else {
 				var level = 'unknown';
@@ -22,13 +24,13 @@ $html .= "
 				} else {
 					level = 'user';
 				}
-				user_info.innerHTML = 'User details: ' + user_json.name + ' (' + level + ')';
+				user_info.textContent = 'User details: ' + user_json.name + ' (' + level + ')';
 				name_input.value = user_json.name;
 			}
 		}
 
 		function get_user() {
-			const url = '" . $stripped_url . "/vulnerabilities/api/v2/user/2';
+			const url = " . json_encode ($api_base . "/vulnerabilities/api/v2/user/2", $json_flags) . ";
 			 
 			fetch(url, { 
 					method: 'GET',
@@ -48,7 +50,7 @@ $html .= "
 		}
 
 		function update_name() {
-			const url = '" . $stripped_url . "/vulnerabilities/api/v2/user/2';
+			const url = " . json_encode ($api_base . "/vulnerabilities/api/v2/user/2", $json_flags) . ";
 			const name = document.getElementById ('name').value;
 			const data = JSON.stringify({name: name});
 			 
@@ -80,7 +82,7 @@ $html .= "
 			Look at the call used to update your name and exploit it to elevate your user to admin (level 0).
 		</p>
 		<p id='user_info'></p>
-		<form method='post' action=\"" . $_SERVER['PHP_SELF'] . "\">
+		<form method='post' action=\"" . htmlspecialchars ($_SERVER['PHP_SELF'], ENT_QUOTES, 'UTF-8') . "\">
 			<p>
 				<label for='name'>Name</label>
 				<input type='text' value='' name='name' id='name'>

@@ -6,8 +6,10 @@ $messages = "";
 if ($_SERVER['REQUEST_METHOD'] == "POST") {
 }
 
-$request_url = $_SERVER['REQUEST_URI'];
-$stripped_url = str_replace ("/vulnerabilities/api/", "", $request_url);
+// Work out where DVWA is installed from the script path, never from the
+// request URI, which is user controlled and would end up inside the script.
+$api_base = preg_replace ('#/vulnerabilities/api/index\.php$#', '', $_SERVER['SCRIPT_NAME']);
+$json_flags = JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP | JSON_UNESCAPED_SLASHES;
 
 $html .= "
 <p>
@@ -23,7 +25,7 @@ $html .= "
 		var name_input = document.getElementById ('name');
 
 		if (user_json.name == '') {
-			user_info.innerHTML = 'User details: unknown user';
+			user_info.textContent = 'User details: unknown user';
 			name_input.value = 'unknown';
 		} else {
 			if (user_json.level == 0) {
@@ -31,7 +33,7 @@ $html .= "
 			} else {
 				level = 'user';
 			}
-			user_info.innerHTML = 'User details: ' + user_json.name + ' (' + level + ')';
+			user_info.textContent = 'User details: ' + user_json.name + ' (' + level + ')';
 			name_input.value = user_json.name;
 		}
 
@@ -44,7 +46,7 @@ $html .= "
 	}
 
 	function get_users() {
-		const url = '" . $stripped_url . "/vulnerabilities/api/v2/user/';
+		const url = " . json_encode ($api_base . "/vulnerabilities/api/v2/user/", $json_flags) . ";
 		 
 		fetch(url, { 
 				method: 'GET',
@@ -78,7 +80,7 @@ $html .= "
 		item = items[0];
 		Object.keys(item).forEach(function(k){
 			let cell = row.insert_th_Cell(-1);
-			cell.innerHTML = k;
+			cell.textContent = k;
 			if (k == 'password') {
 				successDiv = document.getElementById ('message');
 				successDiv.style.display = 'block';
@@ -91,7 +93,7 @@ $html .= "
 			let row = tableBody.insertRow();
 			for (const [key, value] of Object.entries(item)) {
 				let cell = row.insertCell(-1);
-				cell.innerHTML = value;
+				cell.textContent = value;
 			}
 		});
 	}

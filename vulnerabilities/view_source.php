@@ -8,7 +8,12 @@ dvwaPageStartup( array( 'authenticated' ) );
 $page = dvwaPageNewGrab();
 $page[ 'title' ] .= 'Source' . $page[ 'title_separator' ].$page[ 'title' ];
 
-if (array_key_exists ("id", $_GET) && array_key_exists ("security", $_GET)) {
+// Both values end up in a file path and in the page, so only accept a real
+// module name and one of the security levels.
+if (array_key_exists ("id", $_GET) && array_key_exists ("security", $_GET) &&
+	is_string ($_GET[ 'id' ]) && preg_match ('/^[a-z_]+\z/', $_GET[ 'id' ]) &&
+	is_dir (DVWA_WEB_PAGE_TO_ROOT . "vulnerabilities/{$_GET[ 'id' ]}/source") &&
+	in_array ($_GET[ 'security' ], array ('low', 'medium', 'high', 'impossible'), true)) {
 	$id       = $_GET[ 'id' ];
 	$security = $_GET[ 'security' ];
 

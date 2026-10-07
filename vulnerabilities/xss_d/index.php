@@ -31,12 +31,6 @@ switch( dvwaSecurityLevelGet() ) {
 
 require_once DVWA_WEB_PAGE_TO_ROOT . "vulnerabilities/xss_d/source/{$vulnerabilityFile}";
 
-# For the impossible level, don't decode the querystring
-$decodeURI = "decodeURI";
-if ($vulnerabilityFile == 'impossible.php') {
-	$decodeURI = "";
-}
-
 $page[ 'body' ] = <<<EOF
 <div class="body_padded">
 	<h1>Vulnerability: DOM Based Cross Site Scripting (XSS)</h1>
@@ -48,9 +42,18 @@ $page[ 'body' ] = <<<EOF
 		<form name="XSS" method="GET">
 			<select name="default">
 				<script>
-					if (document.location.href.indexOf("default=") >= 0) {
-						var lang = document.location.href.substring(document.location.href.indexOf("default=")+8);
-						document.write("<option value='" + lang + "'>" + $decodeURI(lang) + "</option>");
+					// Only read the real query string parameter (not the fragment) and
+					// HTML encode it before it is written into the page.
+					function escapeHtml(str) {
+						return String(str).replace(/[&<>"']/g, function (c) {
+							return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+						});
+					}
+
+					var params = new URLSearchParams(document.location.search);
+					if (params.has("default")) {
+						var lang = escapeHtml(params.get("default"));
+						document.write("<option value='" + lang + "'>" + lang + "</option>");
 						document.write("<option value='' disabled='disabled'>----</option>");
 					}
 					    

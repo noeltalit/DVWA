@@ -1,0 +1,12 @@
+# Uploaded files are data, never code. Refuse requests for anything that
+# looks like a script and make sure PHP never runs in this directory.
+<FilesMatch "(?i)\.(php[0-9]?|phtml|phar|pht|phps|inc|cgi|pl|py|sh|shtml)$">
+	Require all denied
+</FilesMatch>
+
+<IfModule mod_php.c>
+	php_flag engine off
+</IfModule>
+<IfModule mod_php7.c>
+	php_flag engine off
+</IfModule>

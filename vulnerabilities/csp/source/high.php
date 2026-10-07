@@ -1,5 +1,5 @@
 <?php
-$headerCSP = "Content-Security-Policy: script-src 'self';";
+$headerCSP = "Content-Security-Policy: script-src 'self'; object-src 'none'; base-uri 'self';";
 
 header($headerCSP);
 
@@ -7,7 +7,7 @@ header($headerCSP);
 <?php
 if (isset ($_POST['include'])) {
 $page[ 'body' ] .= "
-	" . $_POST['include'] . "
+	" . htmlspecialchars ((is_string( $_POST['include'] ) ? $_POST['include'] : ''), ENT_QUOTES, 'UTF-8') . "
 ";
 }
 $page[ 'body' ] .= '

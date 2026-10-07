@@ -3,12 +3,16 @@
 $html = "";
 
 if ($_SERVER['REQUEST_METHOD'] == "POST") {
-	if (!isset ($_SESSION['last_session_id_high'])) {
-		$_SESSION['last_session_id_high'] = 0;
-	}
-	$_SESSION['last_session_id_high']++;
-	$cookie_value = md5($_SESSION['last_session_id_high']);
-	setcookie("dvwaSession", $cookie_value, time()+3600, "/vulnerabilities/weak_id/", $_SERVER['HTTP_HOST'], false, false);
+	// Session IDs must be unguessable: use a cryptographically secure random
+	// value, never a counter, a timestamp or a hash of either.
+	$cookie_value = bin2hex(random_bytes(20));
+	$secure = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off');
+	setcookie("dvwaSession", $cookie_value, [
+		'expires'  => time() + 3600,
+		'path'     => '/vulnerabilities/weak_id/',
+		'secure'   => $secure,
+		'httponly' => true,
+		'samesite' => 'Strict',
+	]);
 }
-
 ?>

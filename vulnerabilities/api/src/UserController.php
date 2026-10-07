@@ -48,6 +48,10 @@ class UserController
 		if (!is_numeric ($input['level'])) {
 			return false;
 		}
+		// Level 0 is admin, which can't be self-assigned through the API
+		if (intval ($input['level']) < 1) {
+			return false;
+		}
 		return true;
 	}
 
@@ -221,9 +225,8 @@ class UserController
 		if (array_key_exists ("name", $input)) {
 			$this->data[$id]->name = $input['name'];
 		}
-		if (array_key_exists ("level", $input)) {
-			$this->data[$id]->level = intval ($input['level']);
-		}
+		// Only the fields in UserUpdate can be changed, anything else sent
+		// in the request (such as level) is ignored.
 		$response['status_code_header'] = 'HTTP/1.1 200 OK';
 		$response['body'] = json_encode ($this->data[$id]->toArray($this->version));
 		return $response;

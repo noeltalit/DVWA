@@ -2,44 +2,40 @@
 
 if( isset( $_POST[ 'Submit' ]  ) ) {
 	// Get input
-	$id = $_POST[ 'id' ];
+	$id = isset( $_POST[ 'id' ] ) ? trim( (is_string( $_POST[ 'id' ] ) ? $_POST[ 'id' ] : '') ) : '';
 	$exists = false;
 
-	switch ($_DVWA['SQLI_DB']) {
-		case MYSQL:
-			$id = ((isset($GLOBALS["___mysqli_ston"]) && is_object($GLOBALS["___mysqli_ston"])) ? mysqli_real_escape_string($GLOBALS["___mysqli_ston"],  $id ) : ((trigger_error("[MySQLConverterToo] Fix the mysql_escape_string() call! This code does not work.", E_USER_ERROR)) ? "" : ""));
+	// Only accept a plain, positive user ID
+	if( ctype_digit( $id ) ) {
+		$id = intval( $id );
 
-			// Check database
-			$query  = "SELECT first_name, last_name FROM users WHERE user_id = $id;";
-			try {
-				$result = mysqli_query($GLOBALS["___mysqli_ston"],  $query ); // Removed 'or die' to suppress mysql errors
-			} catch (Exception $e) {
-				print "There was an error.";
-				exit;
-			}
-
-			$exists = false;
-			if ($result !== false) {
+		switch ($_DVWA['SQLI_DB']) {
+			case MYSQL:
+				// Check database using a parameterised query
 				try {
-					$exists = (mysqli_num_rows( $result ) > 0); // The '@' character suppresses errors
+					$data = $db->prepare( 'SELECT first_name, last_name FROM users WHERE user_id = (:id);' );
+					$data->bindParam( ':id', $id, PDO::PARAM_INT );
+					$data->execute();
+					$exists = ( $data->fetch() !== false );
+				} catch (Exception $e) {
+					$exists = false;
+				}
+
+				break;
+			case SQLITE:
+				global $sqlite_db_connection;
+
+				try {
+					$stmt = $sqlite_db_connection->prepare( 'SELECT first_name, last_name FROM users WHERE user_id = :id;' );
+					$stmt->bindValue( ':id', $id, SQLITE3_INTEGER );
+					$results = $stmt->execute();
+					$row = $results->fetchArray();
+					$exists = $row !== false;
 				} catch(Exception $e) {
 					$exists = false;
 				}
-			}
-			
-			break;
-		case SQLITE:
-			global $sqlite_db_connection;
-			
-			$query  = "SELECT first_name, last_name FROM users WHERE user_id = $id;";
-			try {
-				$results = $sqlite_db_connection->query($query);
-				$row = $results->fetchArray();
-				$exists = $row !== false;
-			} catch(Exception $e) {
-				$exists = false;
-			}
-			break;
+				break;
+		}
 	}
 
 	if ($exists) {

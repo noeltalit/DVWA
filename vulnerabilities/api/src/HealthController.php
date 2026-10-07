@@ -83,9 +83,19 @@ class HealthController
 	private function checkConnectivity() {
 		$input = (array) json_decode(file_get_contents('php://input'), TRUE);
 		if (array_key_exists ("target", $input)) {
-			$target = $input['target'];
+			$target = is_string ($input['target']) ? trim ($input['target']) : "";
 
-			exec ("ping -c 4 " . $target, $output, $ret_var);
+			// Only accept an IP address or a hostname, nothing the shell could
+			// interpret, and never hand the value to the shell unquoted.
+			$is_ip   = (filter_var ($target, FILTER_VALIDATE_IP) !== false);
+			$is_host = (preg_match ('/^(?=.{1,253}\z)[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?(?:\.[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?)*\z/', $target) === 1);
+			if (!$is_ip && !$is_host) {
+				$response['status_code_header'] = 'HTTP/1.1 422 Unprocessable Entity';
+				$response['body'] = json_encode (array ("status" => "Invalid target"));
+				return $response;
+			}
+
+			exec ("ping -c 4 " . escapeshellarg ($target), $output, $ret_var);
 
 			if ($ret_var == 0) {
 				$response['status_code_header'] = 'HTTP/1.1 200 OK';

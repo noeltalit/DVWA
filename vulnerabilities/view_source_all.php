@@ -8,7 +8,10 @@ dvwaPageStartup(array('authenticated'));
 $page = dvwaPageNewGrab();
 $page['title'] = 'Source' . $page['title_separator'] . $page['title'];
 
-if (array_key_exists("id", $_GET)) {
+// The id ends up in a file path and in the page, so only accept a real
+// module name.
+if (array_key_exists("id", $_GET) && is_string($_GET['id']) &&
+	preg_match('/^[a-z_]+\z/', $_GET['id']) && is_dir("./{$_GET['id']}/source")) {
 	$id = $_GET['id'];
 
 	$lowsrc = @file_get_contents("./{$id}/source/low.php");

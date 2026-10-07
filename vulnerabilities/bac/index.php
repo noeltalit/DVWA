@@ -62,6 +62,8 @@ if ($log_result && mysqli_num_rows($log_result) > 0) {
     $html .= "<tr><th>ID</th><th>Accessor</th><th>Target</th><th>IP Address</th><th>Timestamp</th></tr>";
 
     while ($log = mysqli_fetch_assoc($log_result)) {
+        // Everything in the log came from a request, so encode it all
+        $log = array_map(function ($v) { return htmlspecialchars((string) $v, ENT_QUOTES, 'UTF-8'); }, $log);
         $target_user = $log['target_user'] ? $log['target_user'] : 'Non-existent User (ID: ' . $log['target_id'] . ')';
 
         $html .= "<tr>";

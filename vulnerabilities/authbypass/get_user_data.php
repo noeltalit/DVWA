@@ -5,9 +5,10 @@ require_once DVWA_WEB_PAGE_TO_ROOT . 'dvwa/includes/dvwaPage.inc.php';
 dvwaDatabaseConnect();
 
 /*
-On high and impossible, only the admin is allowed to retrieve the data.
+Only the admin is allowed to retrieve the data, whatever the security level.
 */
-if ((dvwaSecurityLevelGet() == "high" || dvwaSecurityLevelGet() == "impossible") && dvwaCurrentUser() != "admin") {
+if (dvwaCurrentUser() != "admin") {
+	http_response_code(403);
 	print json_encode (array ("result" => "fail", "error" => "Access denied"));
 	exit;
 }
@@ -15,19 +16,13 @@ if ((dvwaSecurityLevelGet() == "high" || dvwaSecurityLevelGet() == "impossible")
 $query  = "SELECT user_id, first_name, last_name FROM users";
 $result = mysqli_query($GLOBALS["___mysqli_ston"],  $query );
 
-$guestbook = ''; 
 $users = array();
 
 while ($row = mysqli_fetch_row($result) ) { 
-	if( dvwaSecurityLevelGet() == 'impossible' ) { 
-		$user_id = $row[0];
-		$first_name = htmlspecialchars( $row[1] );
-		$surname = htmlspecialchars( $row[2] );
-	} else {
-		$user_id = $row[0];
-		$first_name = $row[1];
-		$surname = $row[2];
-	}   
+	// The names are written into the page as HTML by authbypass.js
+	$user_id = intval ($row[0]);
+	$first_name = htmlspecialchars( (string) $row[1], ENT_QUOTES, 'UTF-8' );
+	$surname = htmlspecialchars( (string) $row[2], ENT_QUOTES, 'UTF-8' );
 
 	$user = array (
 					"user_id" => $user_id,
@@ -37,6 +32,7 @@ while ($row = mysqli_fetch_row($result) ) {
 	$users[] = $user;
 }
 
+header ("Content-Type: application/json");
 print json_encode ($users);
 exit;
 ?>

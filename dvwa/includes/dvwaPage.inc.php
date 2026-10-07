@@ -43,18 +43,11 @@ if( !isset( $_COOKIE[ 'security' ] ) || !in_array( $_COOKIE[ 'security' ], $secu
  * flags and the new id (or the same one if we wish to keep it).
 */
 function dvwa_start_session() {
-	// This will setup the session cookie based on
-	// the security level.
-
-	$security_level = dvwaSecurityLevelGet();
-	if ($security_level == 'impossible') {
-		$httponly = true;
-		$samesite = "Strict";
-	}
-	else {
-		$httponly = false;
-		$samesite = "";
-	}
+	// The session cookie is always HttpOnly and SameSite, whatever the
+	// security level, so it can't be read by injected script or sent along
+	// with cross-site requests.
+	$httponly = true;
+	$samesite = "Strict";
 
 	$maxlifetime = 86400;
 	$secure = false;
@@ -84,25 +77,12 @@ function dvwa_start_session() {
 	 * session_start() might not generate a Set-Cookie header if a cookie already
 	 * exists.
 	 *
-	 * For impossible security level, we regenerate the session id, PHP will
-	 * generate a new random id. This is good security practice because it
-	 * prevents the reuse of a previous unauthenticated id that an attacker
-	 * might have knowledge of (aka session fixation attack).
-   *
-	 * For lower levels, we want to allow session fixation attacks, so if an id
-	 * already exists, we don't want it to change after authentication. We thus
-	 * set the id to its previous value using session_id(), which will force
-	 * the Set-Cookie header.
+	 * We always regenerate the session id, PHP will generate a new random id.
+	 * This prevents the reuse of a previous unauthenticated id that an
+	 * attacker might have knowledge of (aka session fixation attack).
 	*/
-	if ($security_level == 'impossible') {
-		session_start();
-		session_regenerate_id(); // force a new id to be generated
-	}
-	else {
-		if (isset($_COOKIE[session_name()])) // if a session id already exists
-			session_id($_COOKIE[session_name()]); // we keep the same id
-		session_start(); // otherwise a new one will be generated here
-	}
+	session_start();
+	session_regenerate_id(true); // force a new id and drop the old session
 }
 
 if (array_key_exists ("Login", $_POST) && $_POST['Login'] == "Login") {
@@ -216,14 +196,7 @@ function dvwaSecurityLevelGet() {
 }
 
 function dvwaSecurityLevelSet( $pSecurityLevel ) {
-	if( $pSecurityLevel == 'impossible' ) {
-		$httponly = true;
-	}
-	else {
-		$httponly = false;
-	}
-
-	setcookie( 'security', $pSecurityLevel, 0, "/", "", false, $httponly );
+	setcookie( 'security', $pSecurityLevel, 0, "/", "", false, true );
 	$_COOKIE['security'] = $pSecurityLevel;
 }
 
@@ -614,14 +587,9 @@ function dvwaGuestbook() {
 	$guestbook = '';
 
 	while( $row = mysqli_fetch_row( $result ) ) {
-		if( dvwaSecurityLevelGet() == 'impossible' ) {
-			$name    = htmlspecialchars( $row[0] );
-			$comment = htmlspecialchars( $row[1] );
-		}
-		else {
-			$name    = $row[0];
-			$comment = $row[1];
-		}
+		// Always encode on output, entries are untrusted user input
+		$name    = htmlspecialchars( (string) $row[0], ENT_QUOTES, 'UTF-8' );
+		$comment = htmlspecialchars( (string) $row[1], ENT_QUOTES, 'UTF-8' );
 
 		$guestbook .= "<div id=\"guestbook_comments\">Name: {$name}<br />" . "Message: {$comment}<br /></div>\n";
 	}
@@ -638,7 +606,7 @@ function checkToken( $user_token, $session_token, $returnURL ) {  # Validate the
 		return true;
 	}
 
-	if( $user_token !== $session_token || !isset( $session_token ) ) {
+	if( !is_string( $user_token ) || !is_string( $session_token ) || !hash_equals( $session_token, $user_token ) ) {
 		dvwaMessagePush( 'CSRF token is incorrect' );
 		dvwaRedirect( $returnURL );
 	}
@@ -648,7 +616,7 @@ function generateSessionToken() {  # Generate a brand new (CSRF) token
 	if( isset( $_SESSION[ 'session_token' ] ) ) {
 		destroySessionToken();
 	}
-	$_SESSION[ 'session_token' ] = md5( uniqid() );
+	$_SESSION[ 'session_token' ] = bin2hex( random_bytes( 32 ) );
 }
 
 function destroySessionToken() {  # Destroy any session with the name 'session_token'

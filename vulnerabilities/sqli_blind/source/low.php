@@ -2,43 +2,42 @@
 
 if( isset( $_GET[ 'Submit' ] ) ) {
 	// Get input
-	$id = $_GET[ 'id' ];
+	$id = isset( $_GET[ 'id' ] ) ? trim( (is_string( $_GET[ 'id' ] ) ? $_GET[ 'id' ] : '') ) : '';
 	$exists = false;
 
-	switch ($_DVWA['SQLI_DB']) {
-		case MYSQL:
-			// Check database
-			$query  = "SELECT first_name, last_name FROM users WHERE user_id = '$id';";
-			try {
-				$result = mysqli_query($GLOBALS["___mysqli_ston"],  $query ); // Removed 'or die' to suppress mysql errors
-			} catch (Exception $e) {
-				print "There was an error.";
-				exit;
-			}
+	// Only accept a plain, positive user ID
+	if( ctype_digit( $id ) ) {
+		$id = intval( $id );
 
-			$exists = false;
-			if ($result !== false) {
+		switch ($_DVWA['SQLI_DB']) {
+			case MYSQL:
+				// Check database using a parameterised query
 				try {
-					$exists = (mysqli_num_rows( $result ) > 0);
+					$data = $db->prepare( 'SELECT first_name, last_name FROM users WHERE user_id = (:id);' );
+					$data->bindParam( ':id', $id, PDO::PARAM_INT );
+					$data->execute();
+					$exists = ( $data->fetch() !== false );
+				} catch (Exception $e) {
+					$exists = false;
+				}
+
+				((is_null($___mysqli_res = mysqli_close($GLOBALS["___mysqli_ston"]))) ? false : $___mysqli_res);
+				break;
+			case SQLITE:
+				global $sqlite_db_connection;
+
+				try {
+					$stmt = $sqlite_db_connection->prepare( 'SELECT first_name, last_name FROM users WHERE user_id = :id;' );
+					$stmt->bindValue( ':id', $id, SQLITE3_INTEGER );
+					$results = $stmt->execute();
+					$row = $results->fetchArray();
+					$exists = $row !== false;
 				} catch(Exception $e) {
 					$exists = false;
 				}
-			}
-			((is_null($___mysqli_res = mysqli_close($GLOBALS["___mysqli_ston"]))) ? false : $___mysqli_res);
-			break;
-		case SQLITE:
-			global $sqlite_db_connection;
 
-			$query  = "SELECT first_name, last_name FROM users WHERE user_id = '$id';";
-			try {
-				$results = $sqlite_db_connection->query($query);
-				$row = $results->fetchArray();
-				$exists = $row !== false;
-			} catch(Exception $e) {
-				$exists = false;
-			}
-
-			break;
+				break;
+		}
 	}
 
 	if ($exists) {

@@ -36,24 +36,14 @@ final class User
 	}
 
 	public function toArray($version) {
-		switch ($version) {
-			case 1:
-				$a = array (
-					"id" => $this->id,
-					"name" => $this->name,
-					"level" => $this->level,
-					"password" => $this->password,
-				);
-				break;
-			default:
-			case 2:
-				$a = array (
-					"id" => $this->id,
-					"name" => $this->name,
-					"level" => $this->level,
-				);
-				break;
-		}
+		// The password hash is never returned, whatever version of the API
+		// is asked for. Older versions are still reachable so they must not
+		// leak more than the current one.
+		$a = array (
+			"id" => $this->id,
+			"name" => $this->name,
+			"level" => $this->level,
+		);
 
 		return $a;
 	}

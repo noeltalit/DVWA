@@ -2,55 +2,54 @@
 
 if( isset( $_REQUEST[ 'Submit' ] ) ) {
 	// Get input
-	$id = $_REQUEST[ 'id' ];
+	$id = isset( $_REQUEST[ 'id' ] ) ? trim( (is_string( $_REQUEST[ 'id' ] ) ? $_REQUEST[ 'id' ] : '') ) : '';
 
-	switch ($_DVWA['SQLI_DB']) {
-		case MYSQL:
-			// Check database
-			$query  = "SELECT first_name, last_name FROM users WHERE user_id = '$id';";
-			$result = mysqli_query($GLOBALS["___mysqli_ston"],  $query ) or die( '<pre>' . ((is_object($GLOBALS["___mysqli_ston"])) ? mysqli_error($GLOBALS["___mysqli_ston"]) : (($___mysqli_res = mysqli_connect_error()) ? $___mysqli_res : false)) . '</pre>' );
+	// Only accept a plain, positive user ID
+	if( ctype_digit( $id ) ) {
+		$id = intval( $id );
 
-			// Get results
-			while( $row = mysqli_fetch_assoc( $result ) ) {
-				// Get values
-				$first = $row["first_name"];
-				$last  = $row["last_name"];
+		switch ($_DVWA['SQLI_DB']) {
+			case MYSQL:
+				// Check database using a parameterised query
+				$data = $db->prepare( 'SELECT first_name, last_name FROM users WHERE user_id = (:id);' );
+				$data->bindParam( ':id', $id, PDO::PARAM_INT );
+				$data->execute();
 
-				// Feedback for end user
-				$html .= "<pre>ID: {$id}<br />First name: {$first}<br />Surname: {$last}</pre>";
-			}
-
-			mysqli_close($GLOBALS["___mysqli_ston"]);
-			break;
-		case SQLITE:
-			global $sqlite_db_connection;
-
-			#$sqlite_db_connection = new SQLite3($_DVWA['SQLITE_DB']);
-			#$sqlite_db_connection->enableExceptions(true);
-
-			$query  = "SELECT first_name, last_name FROM users WHERE user_id = '$id';";
-			#print $query;
-			try {
-				$results = $sqlite_db_connection->query($query);
-			} catch (Exception $e) {
-				echo 'Caught exception: ' . $e->getMessage();
-				exit();
-			}
-
-			if ($results) {
-				while ($row = $results->fetchArray()) {
+				// Get results
+				while( $row = $data->fetch() ) {
 					// Get values
-					$first = $row["first_name"];
-					$last  = $row["last_name"];
+					$first = htmlspecialchars( $row["first_name"], ENT_QUOTES, 'UTF-8' );
+					$last  = htmlspecialchars( $row["last_name"], ENT_QUOTES, 'UTF-8' );
 
 					// Feedback for end user
 					$html .= "<pre>ID: {$id}<br />First name: {$first}<br />Surname: {$last}</pre>";
 				}
-			} else {
-				echo "Error in fetch ".$sqlite_db->lastErrorMsg();
-			}
-			break;
-	} 
+
+				mysqli_close($GLOBALS["___mysqli_ston"]);
+				break;
+			case SQLITE:
+				global $sqlite_db_connection;
+
+				$stmt = $sqlite_db_connection->prepare( 'SELECT first_name, last_name FROM users WHERE user_id = :id;' );
+				$stmt->bindValue( ':id', $id, SQLITE3_INTEGER );
+				$results = $stmt->execute();
+
+				if ($results) {
+					while ($row = $results->fetchArray()) {
+						// Get values
+						$first = htmlspecialchars( $row["first_name"], ENT_QUOTES, 'UTF-8' );
+						$last  = htmlspecialchars( $row["last_name"], ENT_QUOTES, 'UTF-8' );
+
+						// Feedback for end user
+						$html .= "<pre>ID: {$id}<br />First name: {$first}<br />Surname: {$last}</pre>";
+					}
+				}
+				break;
+		}
+	}
+	else {
+		$html .= '<pre>ERROR: The user ID must be a number.</pre>';
+	}
 }
 
 ?>
