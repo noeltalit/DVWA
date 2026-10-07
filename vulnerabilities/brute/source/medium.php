@@ -57,8 +57,7 @@ if( isset( $_GET[ 'Login' ] ) ) {
 		$data->execute();
 	}
 	else {
-		// Login failed, slow down automated guessing
-		sleep( 1 );
+		// Login failed
 		$html .= "<pre><br />Username and/or password incorrect.<br /><br />Alternatively, the account has been locked because of too many failed logins.<br />If this is the case, <em>please try again in {$lockout_time} minutes</em>.</pre>";
 
 		// Update bad login count

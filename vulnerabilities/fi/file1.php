@@ -6,8 +6,8 @@ $page[ 'body' ] .= "
 	<div class=\"vulnerable_code_area\">
 		<h3>File 1</h3>
 		<hr />
-		Hello <em>" . dvwaCurrentUser() . "</em><br />
-		Your IP address is: <em>{$_SERVER[ 'REMOTE_ADDR' ]}</em><br /><br />
+		Hello <em>" . htmlspecialchars( dvwaCurrentUser(), ENT_QUOTES, 'UTF-8' ) . "</em><br />
+		Your IP address is: <em>" . htmlspecialchars( $_SERVER[ 'REMOTE_ADDR' ], ENT_QUOTES, 'UTF-8' ) . "</em><br /><br />
 		[<em><a href=\"?page=include.php\">back</a></em>]
 	</div>
 

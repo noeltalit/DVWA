@@ -6,17 +6,17 @@ $page[ 'body' ] .= "
 	<div class=\"vulnerable_code_area\">
 		<h3>File 3</h3>
 		<hr />
-		Welcome back <em>" . dvwaCurrentUser() . "</em><br />
-		Your IP address is: <em>{$_SERVER[ 'REMOTE_ADDR' ]}</em><br />";
+		Welcome back <em>" . htmlspecialchars( dvwaCurrentUser(), ENT_QUOTES, 'UTF-8' ) . "</em><br />
+		Your IP address is: <em>" . htmlspecialchars( $_SERVER[ 'REMOTE_ADDR' ], ENT_QUOTES, 'UTF-8' ) . "</em><br />";
 if( array_key_exists( 'HTTP_X_FORWARDED_FOR', $_SERVER )) {
-	$page[ 'body' ] .= "Forwarded for: <em>" . $_SERVER[ 'HTTP_X_FORWARDED_FOR' ];
+	$page[ 'body' ] .= "Forwarded for: <em>" . htmlspecialchars( $_SERVER[ 'HTTP_X_FORWARDED_FOR' ], ENT_QUOTES, 'UTF-8' );
 	$page[ 'body' ] .= "</em><br />";
 }
-		$page[ 'body' ] .= "Your user-agent address is: <em>{$_SERVER[ 'HTTP_USER_AGENT' ]}</em><br />";
+		$page[ 'body' ] .= "Your user-agent address is: <em>" . htmlspecialchars( isset( $_SERVER[ 'HTTP_USER_AGENT' ] ) ? $_SERVER[ 'HTTP_USER_AGENT' ] : '', ENT_QUOTES, 'UTF-8' ) . "</em><br />";
 if( array_key_exists( 'HTTP_REFERER', $_SERVER )) {
-		$page[ 'body' ] .= "You came from: <em>{$_SERVER[ 'HTTP_REFERER' ]}</em><br />";
+		$page[ 'body' ] .= "You came from: <em>" . htmlspecialchars( $_SERVER[ 'HTTP_REFERER' ], ENT_QUOTES, 'UTF-8' ) . "</em><br />";
 }
-		$page[ 'body' ] .= "I'm hosted at: <em>{$_SERVER[ 'HTTP_HOST' ]}</em><br /><br />
+		$page[ 'body' ] .= "I'm hosted at: <em>" . htmlspecialchars( $_SERVER[ 'HTTP_HOST' ], ENT_QUOTES, 'UTF-8' ) . "</em><br /><br />
 		[<em><a href=\"?page=include.php\">back</a></em>]
 	</div>
 
