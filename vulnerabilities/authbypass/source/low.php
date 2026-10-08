@@ -12,14 +12,16 @@ admin check and answers 403 too.
 */
 
 if (dvwaCurrentUser() != "admin") {
+	// Answer with a plain DVWA page that only says access was refused: none
+	// of the user manager (title, heading, script, table) is sent.
 	http_response_code(403);
-	$page[ 'body' ] .= '
+	$page = dvwaPageNewGrab();
+	$page[ 'title' ]   = 'Unauthorised' . $page[ 'title_separator' ] . $page[ 'title' ];
+	$page[ 'page_id' ] = '';
+	$page[ 'body' ]    = '
 <div class="body_padded">
-	<h1>Vulnerability: Authorisation Bypass</h1>
-
-	<div class="vulnerable_code_area">
-		<p><strong>Unauthorised</strong> (403 Forbidden): only the admin user is allowed to access the user manager.</p>
-	</div>
+	<h1>Unauthorised</h1>
+	<p>Unauthorised (403 Forbidden): you are not allowed to access this page.</p>
 </div>';
 	dvwaHtmlEcho( $page );
 	exit;
