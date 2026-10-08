@@ -20,7 +20,7 @@ $users = array();
 
 while ($row = mysqli_fetch_row($result) ) { 
 	// The names are written into the page as HTML by authbypass.js
-	$user_id = intval ($row[0]);
+	$user_id = $row[0];
 	$first_name = htmlspecialchars( (string) $row[1], ENT_QUOTES, 'UTF-8' );
 	$surname = htmlspecialchars( (string) $row[2], ENT_QUOTES, 'UTF-8' );
 

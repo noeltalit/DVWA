@@ -13,9 +13,9 @@ $allowedFileNames = [
 ];
 
 if( $file !== null && !in_array( $file, $allowedFileNames, true ) ) {
-	// This isn't the page we want!
-	echo "ERROR: File not found!";
-	exit;
+	// This isn't the page we want! Show the list of files again instead.
+	$page[ 'body' ] .= "<div class=\"warning\">ERROR: File not found!</div>";
+	$file = 'include.php';
 }
 
 ?>

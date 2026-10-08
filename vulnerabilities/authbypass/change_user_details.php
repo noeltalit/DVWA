@@ -24,17 +24,6 @@ if ($_SERVER['REQUEST_METHOD'] != "POST") {
 	exit;
 }
 
-// A cross site HTML form can't send JSON, only a script on this site can
-$content_type = isset ($_SERVER['CONTENT_TYPE']) ? strtolower (trim (explode (";", $_SERVER['CONTENT_TYPE'])[0])) : "";
-if ($content_type != "application/json") {
-	$result = array (
-						"result" => "fail",
-						"error" => "Only JSON requests are accepted"
-					);
-	echo json_encode($result);
-	exit;
-}
-
 $json = file_get_contents('php://input');
 $data = json_decode($json);
 if (!is_object ($data) ||
