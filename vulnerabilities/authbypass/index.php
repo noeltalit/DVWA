@@ -3,6 +3,27 @@
 define( 'DVWA_WEB_PAGE_TO_ROOT', '../../' );
 require_once DVWA_WEB_PAGE_TO_ROOT . 'dvwa/includes/dvwaPage.inc.php';
 
+/*
+Deny by default: the user manager is only for the admin user. The check is
+made here, on the server, before anything else and whatever the security
+level, so a missing menu entry is never the only protection. Anyone else,
+logged in or not, gets a real 403 Forbidden as a normal DVWA page that
+contains nothing of the user manager. The API behind the page
+(get_user_data.php, change_user_details.php) does the same check.
+*/
+if( !dvwaIsLoggedIn() || dvwaCurrentUser() !== "admin" ) {
+	http_response_code( 403 );
+	$page = dvwaPageNewGrab();
+	$page[ 'title' ]   = 'Unauthorised' . $page[ 'title_separator' ] . $page[ 'title' ];
+	$page[ 'body' ]    = '
+<div class="body_padded">
+	<h1>Unauthorised</h1>
+	<p>Unauthorised (403 Forbidden): only the admin user is allowed to access this page.</p>
+</div>';
+	dvwaHtmlEcho( $page );
+	exit;
+}
+
 dvwaPageStartup( array( 'authenticated' ) );
 
 $page = dvwaPageNewGrab();
