@@ -1,73 +1,19 @@
 <?php
 
 if( isset( $_GET[ 'Login' ] ) ) {
-	// Sanitise username input
-	$user = isset( $_GET[ 'username' ] ) ? (is_string( $_GET[ 'username' ] ) ? $_GET[ 'username' ] : '') : '';
-	$user = stripslashes( $user );
-	$user = mysqli_real_escape_string( $GLOBALS["___mysqli_ston"], $user );
+	require_once DVWA_WEB_PAGE_TO_ROOT . 'vulnerabilities/brute/login_guard.inc.php';
 
-	// Sanitise password input
-	$pass = isset( $_GET[ 'password' ] ) ? (is_string( $_GET[ 'password' ] ) ? $_GET[ 'password' ] : '') : '';
-	$pass = stripslashes( $pass );
-	$pass = mysqli_real_escape_string( $GLOBALS["___mysqli_ston"], $pass );
-	$pass = md5( $pass );
+	// Get username and password (plain strings only)
+	$user = ( isset( $_GET[ 'username' ] ) && is_string( $_GET[ 'username' ] ) ) ? $_GET[ 'username' ] : '';
+	$pass = ( isset( $_GET[ 'password' ] ) && is_string( $_GET[ 'password' ] ) ) ? $_GET[ 'password' ] : '';
 
-	// Throttle guessing. After a failed login the account has to wait before
-	// another attempt is even checked: 2 seconds for the first few failures
-	// (enough for typos), then doubling up to 15 minutes. Attempts made too
-	// soon are rejected without looking at the password, so an automated
-	// guessing run gets nowhere, while a real user can simply retry.
-	$throttled = false;
-	$data = $db->prepare( 'SELECT failed_login, TIMESTAMPDIFF( SECOND, last_login, NOW() ) AS since_last FROM users WHERE user = (:user) LIMIT 1;' );
-	$data->bindParam( ':user', $user, PDO::PARAM_STR );
-	$data->execute();
-	$row = $data->fetch();
-
-	if( ( $data->rowCount() == 1 ) && ( $row[ 'failed_login' ] > 0 ) ) {
-		$failures = intval( $row[ 'failed_login' ] );
-		$wait     = ( $failures <= 3 ) ? 2 : min( pow( 2, $failures - 2 ), 15 * 60 );
-		if( $row[ 'since_last' ] === null || intval( $row[ 'since_last' ] ) < $wait ) {
-			$throttled = true;
-		}
-	}
-
-	$logged_in = false;
-	if( !$throttled ) {
-		// Check the database (if username matches the password)
-		$data = $db->prepare( 'SELECT * FROM users WHERE user = (:user) AND password = (:password) LIMIT 1;' );
-		$data->bindParam( ':user', $user, PDO::PARAM_STR );
-		$data->bindParam( ':password', $pass, PDO::PARAM_STR );
-		$data->execute();
-		$row = $data->fetch();
-
-		if( $data->rowCount() == 1 ) {
-			$logged_in = true;
-
-			// Get users details
-			$avatar = htmlspecialchars( $row[ 'avatar' ], ENT_QUOTES, 'UTF-8' );
-			$user_html = htmlspecialchars( $row[ 'user' ], ENT_QUOTES, 'UTF-8' );
-
-			// Login successful
-			$html .= "<p>Welcome to the password protected area {$user_html}</p>";
-			$html .= "<img src=\"{$avatar}\" />";
-
-			// Reset bad login count
-			$data = $db->prepare( 'UPDATE users SET failed_login = 0, last_login = NOW() WHERE user = (:user) LIMIT 1;' );
-			$data->bindParam( ':user', $user, PDO::PARAM_STR );
-			$data->execute();
-		}
-		else {
-			// Count the failure and start the wait
-			$data = $db->prepare( 'UPDATE users SET failed_login = (failed_login + 1), last_login = NOW() WHERE user = (:user) LIMIT 1;' );
-			$data->bindParam( ':user', $user, PDO::PARAM_STR );
-			$data->execute();
-		}
-	}
-
-	if( !$logged_in ) {
-		// Same answer whether the password was wrong or the attempt came too soon
-		$html .= "<pre><br />Username and/or password incorrect.<br /><br />After a failed login the account has to wait a little before it can be tried again.</pre>";
-	}
+	// Prepared statement lookup, constant time hash comparison and a
+	// per-account failed login counter: after a failed login the account
+	// cools down, after 3 failures it is locked for 15 minutes. While it is
+	// locked the password isn't checked at all, so a guessing run only ever
+	// gets the "account locked" page.
+	$result = bruteLoginAttempt( $db, 'low', $user, $pass );
+	$html  .= bruteLoginHtml( $result );
 
 	((is_null($___mysqli_res = mysqli_close($GLOBALS["___mysqli_ston"]))) ? false : $___mysqli_res);
 }
