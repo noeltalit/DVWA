@@ -79,7 +79,7 @@ if( isset( $_POST[ 'Login' ] ) && isset ($_POST['username']) && isset ($_POST['p
 		$data->execute();
 	} else {
 		// Login failed
-		sleep( rand( 2, 4 ) );
+		// No sleep(): the lockout above is what stops guessing
 
 		// Give the user some feedback
 		$html .= "<pre><br />Username and/or password incorrect.<br /><br/>Alternative, the account has been locked because of too many failed logins.<br />If this is the case, <em>please try again in {$lockout_time} minutes</em>.</pre>";
