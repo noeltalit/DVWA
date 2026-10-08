@@ -2,28 +2,32 @@
 /*
  * Login guard for the Brute Force pages.
  *
- * Every login attempt for an account goes through bruteLoginAttempt(), which
- * keeps a failed-attempt counter per (security level, account) on disk:
+ * Every login attempt goes through bruteLoginAttempt(), which keeps a
+ * failed-attempt counter per (security level, account) on disk, the same
+ * policy as the impossible level (users.failed_login / last_login):
  *
- *  - after a failed login the account cools down for BRUTE_GUARD_COOLDOWN
- *    seconds, after BRUTE_GUARD_MAX_FAILURES failures it is locked for
- *    BRUTE_GUARD_LOCKOUT seconds;
- *  - while it is cooling down / locked the password is NOT checked at all, so
- *    a guessing run can't find the right password, it only gets the
- *    "account locked" page (a normal 200 page, no sleep() involved);
- *  - attempts made while locked count as failures too;
- *  - a successful login resets the counter.
+ *  - after BRUTE_GUARD_MAX_FAILURES failed logins in a row the account is
+ *    locked for BRUTE_GUARD_LOCKOUT seconds, and every attempt made while it
+ *    is locked restarts that time;
+ *  - while it is locked the password is NOT checked at all, so a guessing
+ *    run can't find the right password even if it is in the list;
+ *  - a wrong password and a locked account get exactly the same answer
+ *    ("Username and/or password incorrect." in the normal page, 200, no
+ *    sleep()), so the responses don't tell a guessing tool anything;
+ *  - a successful login resets the counter, so a user who mistypes once or
+ *    twice can still log in.
  *
  * The state file is held under an exclusive lock for the whole
- * check-password-and-record step, so parallel guesses are serialised and
- * can't race past the counter. The account is looked up first and the counter
- * is keyed on the stored user name, so "Admin" or "admin " (which MySQL
- * matches as "admin") share the counter of "admin".
+ * check-password-and-record step, so parallel guesses (e.g. hydra's 16
+ * tasks) are serialised and can't race past the counter. The account is
+ * looked up first and the counter is keyed on the stored user name, so
+ * "Admin" or "admin " (which MySQL matches as "admin") share the counter of
+ * "admin". The counter is kept per security level so that guessing on one
+ * level doesn't lock the account on the others.
  */
 
 define( 'BRUTE_GUARD_MAX_FAILURES', 3 );
-define( 'BRUTE_GUARD_COOLDOWN', 30 );        // seconds after a failed login
-define( 'BRUTE_GUARD_LOCKOUT', 15 * 60 );    // seconds after too many failures
+define( 'BRUTE_GUARD_LOCKOUT', 15 * 60 );    // seconds
 
 function bruteGuardDir() {
 	$candidates = array( rtrim( sys_get_temp_dir(), '/\\' ) . DIRECTORY_SEPARATOR . 'dvwa_brute_guard',
@@ -39,11 +43,10 @@ function bruteGuardDir() {
 }
 
 /*
- * Returns array( 'status' => 'ok' | 'failed' | 'locked', 'row' => user row or null,
- *                'wait' => seconds left before the account can be tried again )
+ * Returns array( 'status' => 'ok' | 'failed' | 'locked', 'row' => user row or null )
  */
 function bruteLoginAttempt( $db, $level, $user, $pass ) {
-	$result = array( 'status' => 'failed', 'row' => null, 'wait' => 0 );
+	$result = array( 'status' => 'failed', 'row' => null );
 
 	if( !is_string( $user ) || !is_string( $pass ) || $user === '' || strlen( $user ) > 64 || strlen( $pass ) > 1024 ) {
 		return $result;
@@ -66,7 +69,6 @@ function bruteLoginAttempt( $db, $level, $user, $pass ) {
 			fclose( $fp );
 		}
 		$result[ 'status' ] = 'locked';
-		$result[ 'wait' ]   = BRUTE_GUARD_COOLDOWN;
 		return $result;
 	}
 
@@ -78,16 +80,18 @@ function bruteLoginAttempt( $db, $level, $user, $pass ) {
 	$lock_until = isset( $state[ 'lock_until' ] ) ? intval( $state[ 'lock_until' ] ) : 0;
 	$now        = time();
 
-	if( $lock_until > $now ) {
-		// Locked: don't even look at the password
+	if( $failures >= BRUTE_GUARD_MAX_FAILURES && $lock_until > $now ) {
+		// Locked: don't even look at the password, and restart the lockout
 		$failures++;
-		if( $failures >= BRUTE_GUARD_MAX_FAILURES ) {
-			$lock_until = max( $lock_until, $now + BRUTE_GUARD_LOCKOUT );
-		}
+		$lock_until = $now + BRUTE_GUARD_LOCKOUT;
 		$result[ 'status' ] = 'locked';
-		$result[ 'wait' ]   = $lock_until - $now;
 	}
 	else {
+		if( $lock_until <= $now && $failures >= BRUTE_GUARD_MAX_FAILURES ) {
+			// The lockout is over, start counting again
+			$failures = 0;
+		}
+
 		$valid = false;
 		if( $row !== false ) {
 			$valid = hash_equals( strtolower( (string) $row[ 'password' ] ), md5( $pass ) );
@@ -105,9 +109,8 @@ function bruteLoginAttempt( $db, $level, $user, $pass ) {
 		}
 		else {
 			$failures++;
-			$lock_until = $now + ( ( $failures >= BRUTE_GUARD_MAX_FAILURES ) ? BRUTE_GUARD_LOCKOUT : BRUTE_GUARD_COOLDOWN );
+			$lock_until = ( $failures >= BRUTE_GUARD_MAX_FAILURES ) ? $now + BRUTE_GUARD_LOCKOUT : 0;
 			$result[ 'status' ] = 'failed';
-			$result[ 'wait' ]   = $lock_until - $now;
 		}
 	}
 
@@ -123,6 +126,7 @@ function bruteLoginAttempt( $db, $level, $user, $pass ) {
 
 /*
  * Turns the result of bruteLoginAttempt() into the HTML shown on the page.
+ * A wrong password and a locked account get the same message.
  */
 function bruteLoginHtml( $result ) {
 	if( $result[ 'status' ] == 'ok' ) {
@@ -131,9 +135,6 @@ function bruteLoginHtml( $result ) {
 		return "<p>Welcome to the password protected area {$user_html}</p><img src=\"{$avatar}\" />";
 	}
 
-	$minutes = max( 1, (int) ceil( $result[ 'wait' ] / 60 ) );
-	if( $result[ 'status' ] == 'locked' ) {
-		return "<pre><br />This account has been locked because of too many failed logins.<br /><em>Please try again in {$minutes} minute(s).</em></pre>";
-	}
-	return "<pre><br />Username and/or password incorrect.<br /><br />To prevent password guessing, the account can't be tried again for a short while after a failed login.</pre>";
+	$minutes = (int) ( BRUTE_GUARD_LOCKOUT / 60 );
+	return "<pre><br />Username and/or password incorrect.<br /><br />Alternatively, the account has been locked because of too many failed logins.<br />If this is the case, <em>please try again in {$minutes} minutes</em>.</pre>";
 }

@@ -8,10 +8,10 @@ if( isset( $_GET[ 'Login' ] ) ) {
 	$pass = ( isset( $_GET[ 'password' ] ) && is_string( $_GET[ 'password' ] ) ) ? $_GET[ 'password' ] : '';
 
 	// Prepared statement lookup, constant time hash comparison and a
-	// per-account failed login counter: after a failed login the account
-	// cools down, after 3 failures it is locked for 15 minutes. While it is
-	// locked the password isn't checked at all, so a guessing run only ever
-	// gets the "account locked" page.
+	// per-account failed login counter: after 3 failed logins in a row the
+	// account is locked for 15 minutes. While it is locked the password isn't
+	// checked at all and the answer is the same "incorrect" page as for a
+	// wrong password, so a guessing run can't find the password.
 	$result = bruteLoginAttempt( $db, 'low', $user, $pass );
 	$html  .= bruteLoginHtml( $result );
 
