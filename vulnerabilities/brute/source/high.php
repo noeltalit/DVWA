@@ -13,10 +13,10 @@ if( isset( $_GET[ 'Login' ] ) ) {
 	// The CSRF token alone doesn't stop guessing (a script can read a fresh
 	// token before every try), so the account is protected as well:
 	// prepared statement lookup, constant time hash comparison and a
-	// per-account failed login counter. After a failed login the account
-	// cools down, after 3 failures it is locked for 15 minutes. While it is
-	// locked the password isn't checked at all, so a guessing run only ever
-	// gets the "account locked" page.
+	// per-account failed login counter. After 3 failed logins in a row the
+	// account is locked for 15 minutes. While it is locked the password isn't
+	// checked at all and the answer is the same "incorrect" page as for a
+	// wrong password, so a guessing run can't find the password.
 	$result = bruteLoginAttempt( $db, 'high', $user, $pass );
 	$html  .= bruteLoginHtml( $result );
 
