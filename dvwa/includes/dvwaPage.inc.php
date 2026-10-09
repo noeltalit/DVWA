@@ -43,11 +43,18 @@ if( !isset( $_COOKIE[ 'security' ] ) || !in_array( $_COOKIE[ 'security' ], $secu
  * flags and the new id (or the same one if we wish to keep it).
 */
 function dvwa_start_session() {
-	// The session cookie is always HttpOnly and SameSite, whatever the
-	// security level, so it can't be read by injected script or sent along
-	// with cross-site requests.
-	$httponly = true;
-	$samesite = "Strict";
+	// This will setup the session cookie based on
+	// the security level.
+
+	$security_level = dvwaSecurityLevelGet();
+	if ($security_level == 'impossible') {
+		$httponly = true;
+		$samesite = "Strict";
+	}
+	else {
+		$httponly = false;
+		$samesite = "";
+	}
 
 	$maxlifetime = 86400;
 	$secure = false;
@@ -85,7 +92,7 @@ function dvwa_start_session() {
 	 * For lower levels the existing id is kept, so clients that keep sending
 	 * the cookie they started with stay logged in.
 	*/
-	if (dvwaSecurityLevelGet() == 'impossible') {
+	if ($security_level == 'impossible') {
 		session_start();
 		session_regenerate_id(); // force a new id to be generated
 	}
@@ -207,7 +214,14 @@ function dvwaSecurityLevelGet() {
 }
 
 function dvwaSecurityLevelSet( $pSecurityLevel ) {
-	setcookie( 'security', $pSecurityLevel, 0, "/", "", false, true );
+	if( $pSecurityLevel == 'impossible' ) {
+		$httponly = true;
+	}
+	else {
+		$httponly = false;
+	}
+
+	setcookie( 'security', $pSecurityLevel, 0, "/", "", false, $httponly );
 	$_COOKIE['security'] = $pSecurityLevel;
 }
 
