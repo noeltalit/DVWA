@@ -6,9 +6,11 @@ dvwaDatabaseConnect();
 
 /*
 Only the admin is allowed to retrieve the data, whatever the security level.
+Other users get the same JSON error the page script already understands
+(result "fail"), as a normal API answer, and no user record at all.
 */
 if (dvwaCurrentUser() != "admin") {
-	http_response_code(403);
+	header ("Content-Type: application/json");
 	print json_encode (array ("result" => "fail", "error" => "Access denied"));
 	exit;
 }
