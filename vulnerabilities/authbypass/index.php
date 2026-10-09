@@ -3,28 +3,29 @@
 define( 'DVWA_WEB_PAGE_TO_ROOT', '../../' );
 require_once DVWA_WEB_PAGE_TO_ROOT . 'dvwa/includes/dvwaPage.inc.php';
 
+// Not logged in: off to the login page, like every other DVWA page.
+dvwaPageStartup( array( 'authenticated' ) );
+
 /*
-Deny by default: the user manager is only for the admin user. The check is
-made here, on the server, before anything else and whatever the security
-level, so a missing menu entry is never the only protection. Anyone else,
-logged in or not, gets a real 403 Forbidden as a normal DVWA page that
-contains nothing of the user manager. The API behind the page
-(get_user_data.php, change_user_details.php) does the same check.
+Deny by default: the user manager is only for the admin user. Hiding the
+menu entry is not access control, so the page checks the user on the
+server, first thing and whatever the security level. Any other user gets
+the normal DVWA page with an "access denied" message instead of the user
+manager: no table, no authbypass.js, no user data. The API behind the page
+(get_user_data.php, change_user_details.php) does the same check and
+answers 403.
 */
-if( !dvwaIsLoggedIn() || dvwaCurrentUser() !== "admin" ) {
-	http_response_code( 403 );
+if( dvwaCurrentUser() !== "admin" ) {
 	$page = dvwaPageNewGrab();
-	$page[ 'title' ]   = 'Unauthorised' . $page[ 'title_separator' ] . $page[ 'title' ];
+	$page[ 'title' ]   = 'Access denied' . $page[ 'title_separator' ] . $page[ 'title' ];
 	$page[ 'body' ]    = '
 <div class="body_padded">
-	<h1>Unauthorised</h1>
-	<p>Unauthorised (403 Forbidden): only the admin user is allowed to access this page.</p>
+	<h1>Access denied</h1>
+	<p>Unauthorised: only the admin user is allowed to use this page.</p>
 </div>';
 	dvwaHtmlEcho( $page );
 	exit;
 }
-
-dvwaPageStartup( array( 'authenticated' ) );
 
 $page = dvwaPageNewGrab();
 $page[ 'title' ]   = 'Vulnerability: Authorisation Bypass' . $page[ 'title_separator' ].$page[ 'title' ];
